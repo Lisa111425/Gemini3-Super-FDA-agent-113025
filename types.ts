@@ -32,6 +32,7 @@ export interface AgentConfig {
   input: string; // Specific input for this agent
   status: 'idle' | 'running' | 'success' | 'error' | 'skipped';
   output: string;
+  outputViewMode?: 'edit' | 'preview'; // New field for UI toggle
   tokenUsage: number;
 }
 

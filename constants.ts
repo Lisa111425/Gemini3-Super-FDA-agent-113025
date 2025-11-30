@@ -1,3 +1,4 @@
+
 import { FlowerTheme, AgentConfig, MagicTool } from './types';
 
 export const FLOWER_THEMES: FlowerTheme[] = [
@@ -91,10 +92,10 @@ export const TRANSLATIONS = {
 };
 
 export const MOCK_AGENTS_INIT: AgentConfig[] = [
-  { id: 'ag1', name: 'Summarizer', description: 'Condenses the input document into key points.', provider: 'gemini', model: 'gemini-2.5-flash', maxTokens: 4000, temperature: 0.3, status: 'idle', output: '', input: '', tokenUsage: 0, systemPrompt: "Summarize the key points of the input text efficiently." },
-  { id: 'ag2', name: 'Risk Analyst', description: 'Identifies potential risks in the summary.', provider: 'openai', model: 'gpt-4o-mini', maxTokens: 8000, temperature: 0.5, status: 'idle', output: '', input: '', tokenUsage: 0, systemPrompt: "Identify potential risks and mitigation strategies based on the summary." },
-  { id: 'ag3', name: 'Creative Refiner', description: 'Rewrites content with a specific tone.', provider: 'openai', model: 'gpt-5-nano', maxTokens: 12000, temperature: 0.8, status: 'idle', output: '', input: '', tokenUsage: 0, systemPrompt: "Rewrite the content in a floral, poetic style." },
-  { id: 'ag4', name: 'Translator', description: 'Translates final output to Traditional Chinese.', provider: 'gemini', model: 'gemini-2.5-flash-lite', maxTokens: 2000, temperature: 0.1, status: 'idle', output: '', input: '', tokenUsage: 0, systemPrompt: "Translate the content into Traditional Chinese." },
+  { id: 'ag1', name: 'Summarizer', description: 'Condenses the input document into key points.', provider: 'gemini', model: 'gemini-2.5-flash', maxTokens: 4000, temperature: 0.3, status: 'idle', output: '', input: '', tokenUsage: 0, systemPrompt: "Summarize the key points of the input text efficiently.", outputViewMode: 'preview' },
+  { id: 'ag2', name: 'Risk Analyst', description: 'Identifies potential risks in the summary.', provider: 'openai', model: 'gpt-4o-mini', maxTokens: 8000, temperature: 0.5, status: 'idle', output: '', input: '', tokenUsage: 0, systemPrompt: "Identify potential risks and mitigation strategies based on the summary.", outputViewMode: 'preview' },
+  { id: 'ag3', name: 'Creative Refiner', description: 'Rewrites content with a specific tone.', provider: 'openai', model: 'gpt-5-nano', maxTokens: 12000, temperature: 0.8, status: 'idle', output: '', input: '', tokenUsage: 0, systemPrompt: "Rewrite the content in a floral, poetic style.", outputViewMode: 'preview' },
+  { id: 'ag4', name: 'Translator', description: 'Translates final output to Traditional Chinese.', provider: 'gemini', model: 'gemini-2.5-flash-lite', maxTokens: 2000, temperature: 0.1, status: 'idle', output: '', input: '', tokenUsage: 0, systemPrompt: "Translate the content into Traditional Chinese.", outputViewMode: 'preview' },
 ];
 
 export const FOLLOW_UP_QUESTIONS = [

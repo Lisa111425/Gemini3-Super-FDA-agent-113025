@@ -341,6 +341,20 @@ const App: React.FC = () => {
   const handleAgentUpdate = (id: string, field: keyof AgentConfig, value: any) => {
     setAgents(prev => prev.map(a => a.id === id ? { ...a, [field]: value } : a));
   };
+  
+  // New: Handle Output update and automatically update NEXT agent's input if Pipeline Mode
+  const handleAgentOutputUpdate = (index: number, value: string) => {
+      setAgents(prev => {
+          const newAgents = [...prev];
+          newAgents[index] = { ...newAgents[index], output: value };
+          
+          // If pipeline mode, update next agent's input
+          if (pipelineMode && index < newAgents.length - 1) {
+              newAgents[index + 1] = { ...newAgents[index + 1], input: value };
+          }
+          return newAgents;
+      });
+  };
 
   const handleExportAgents = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(agents, null, 2));
@@ -374,6 +388,73 @@ const App: React.FC = () => {
     reader.readAsText(file);
     // Reset value so same file can be imported again if needed
     e.target.value = '';
+  };
+
+  // Run a SINGLE agent
+  const runSingleAgent = async (index: number) => {
+      const agent = agents[index];
+      
+      if (state.mana < 5) {
+          alert("Not enough Mana! Need 5.");
+          return;
+      }
+
+      setIsProcessing(true);
+      addLog(`Running Agent: ${agent.name}...`, 'info');
+
+      // Update Agent status to running
+      setAgents(prev => prev.map((a, i) => i === index ? { ...a, status: 'running' } : a));
+      
+      // Determine input: use current agent input, fallback to global/prev if empty (though UI usually handles this)
+      let currentInput = agent.input;
+      if (!currentInput && index === 0) currentInput = (state.globalTask || "") + "\n" + state.ocrText;
+      
+      try {
+          const result = await generateContent(
+              agent.provider,
+              agent.model,
+              agent.systemPrompt || state.globalPrompt,
+              currentInput,
+              agent.temperature,
+              agent.maxTokens
+          );
+
+          // Update this agent output AND next agent input via handleAgentOutputUpdate logic
+          // But since handleAgentOutputUpdate is for manual edits, we do manual state update here to be safe
+          setAgents(prev => {
+              const newAgents = [...prev];
+              newAgents[index] = { 
+                  ...newAgents[index], 
+                  status: 'success', 
+                  output: result.text,
+                  tokenUsage: result.tokens
+              };
+              
+              if (pipelineMode && index < newAgents.length - 1) {
+                  newAgents[index + 1] = { ...newAgents[index + 1], input: result.text };
+              }
+              return newAgents;
+          });
+
+          addLog(`Agent ${agent.name} finished.`, 'success');
+           // Costs less mana for single run
+          setState(p => ({ 
+             ...p, 
+             mana: Math.max(0, p.mana - 5),
+             xp: p.xp + 5,
+             stress: Math.min(100, p.stress + 2)
+          }));
+
+      } catch (error: any) {
+          setAgents(prev => prev.map((a, i) => i === index ? { 
+                ...a, 
+                status: 'error', 
+                output: `Error: ${error.message}`
+            } : a));
+            addLog(`Agent ${agent.name} failed: ${error.message}`, 'error');
+      } finally {
+          setIsProcessing(false);
+      }
   };
 
   const runAgents = async () => {
@@ -433,6 +514,11 @@ const App: React.FC = () => {
             
             // For next agent in pipeline
             previousOutput = result.text;
+            
+            // Update next agent's input immediately in UI for visibility
+            if (pipelineMode && i < agents.length - 1) {
+                 setAgents(prev => prev.map((a, idx) => idx === i + 1 ? { ...a, input: result.text } : a));
+            }
             
             // Reduce stress on success
             if (state.stress > 0) setState(p => ({ ...p, stress: Math.max(0, p.stress - 5) }));
@@ -967,6 +1053,15 @@ const App: React.FC = () => {
                                                 onChange={e => handleAgentUpdate(agent.id, 'name', e.target.value)}
                                                 className="font-bold bg-transparent outline-none w-full text-lg"
                                             />
+                                            {/* Single Run Button */}
+                                            <button 
+                                                onClick={() => runSingleAgent(idx)}
+                                                disabled={isProcessing}
+                                                className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-xs"
+                                                title="Run this agent only"
+                                            >
+                                                <Play size={14} fill="currentColor" />
+                                            </button>
                                         </div>
                                         <span className="text-[10px] opacity-40 uppercase tracking-widest">Step {idx + 1}</span>
                                      </div>
@@ -1044,14 +1139,45 @@ const App: React.FC = () => {
 
                                     <div className="relative">
                                          <div className="text-[10px] uppercase opacity-40 mb-1 font-bold flex items-center justify-between">
-                                            <span>Output</span>
+                                            <div className="flex items-center gap-2">
+                                                <span>Output</span>
+                                                {/* Output View Toggles */}
+                                                <div className="flex bg-black/5 dark:bg-white/5 rounded p-0.5 gap-0.5">
+                                                    <button 
+                                                        onClick={() => handleAgentUpdate(agent.id, 'outputViewMode', 'edit')}
+                                                        className={`p-1 rounded ${agent.outputViewMode === 'edit' ? 'bg-white shadow text-black' : 'opacity-50'}`}
+                                                        title="Edit Output"
+                                                    >
+                                                        <Edit3 size={10} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleAgentUpdate(agent.id, 'outputViewMode', 'preview')}
+                                                        className={`p-1 rounded ${agent.outputViewMode === 'preview' ? 'bg-white shadow text-black' : 'opacity-50'}`}
+                                                        title="Preview Output"
+                                                    >
+                                                        <Eye size={10} />
+                                                    </button>
+                                                </div>
+                                            </div>
                                             {agent.tokenUsage > 0 && <span>{Math.round(agent.tokenUsage)} tokens</span>}
                                          </div>
-                                         <div className={`w-full h-32 text-xs p-2 rounded resize-none border overflow-y-auto font-mono ${!agent.output ? 'opacity-30 flex items-center justify-center' : ''}`}
-                                            style={{ borderColor: colors.border, backgroundColor: state.darkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)' }}
-                                        >
-                                            {agent.output || "Waiting for execution..."}
-                                        </div>
+                                         
+                                         {/* Conditional Output Render */}
+                                         {agent.outputViewMode === 'edit' ? (
+                                             <textarea 
+                                                value={agent.output}
+                                                onChange={e => handleAgentOutputUpdate(idx, e.target.value)}
+                                                className={`w-full h-32 text-xs p-2 rounded resize-none outline-none border font-mono ${!agent.output ? 'opacity-30' : ''}`}
+                                                style={{ borderColor: colors.accent, backgroundColor: state.darkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)' }}
+                                                placeholder="Output text will appear here..."
+                                             />
+                                         ) : (
+                                            <div className={`w-full h-32 text-xs p-2 rounded resize-none border overflow-y-auto font-mono whitespace-pre-wrap ${!agent.output ? 'opacity-30 flex items-center justify-center' : ''}`}
+                                                style={{ borderColor: colors.border, backgroundColor: state.darkMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.4)' }}
+                                            >
+                                                {agent.output || "Waiting for execution..."}
+                                            </div>
+                                         )}
                                     </div>
                                 </div>
                             </div>
